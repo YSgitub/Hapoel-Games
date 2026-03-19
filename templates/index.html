@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚽ European Match Scanner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: white;
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; }
+    header span { font-size: 2rem; }
+
+    .container { max-width: 960px; margin: 30px auto; padding: 0 20px; }
+
+    /* Form card */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      margin-bottom: 28px;
+    }
+
+    .form-row { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-weight: 600; font-size: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    input[type="month"] {
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="month"]:focus { border-color: #e63946; }
+
+    .city-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: 580px;
+    }
+
+    .city-chip input { display: none; }
+    .city-chip label {
+      display: inline-block;
+      padding: 6px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: all 0.15s;
+      user-select: none;
+      background: #fafafa;
+    }
+    .city-chip input:checked + label {
+      background: #e63946;
+      color: white;
+      border-color: #e63946;
+      font-weight: 600;
+    }
+    .city-chip label:hover { border-color: #e63946; }
+
+    button[type="submit"] {
+      margin-top: 24px;
+      padding: 12px 32px;
+      background: #e63946;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button[type="submit"]:hover { background: #c1121f; }
+
+    /* Results */
+    .results-header {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #555;
+      margin-bottom: 16px;
+    }
+    .results-header span { color: #e63946; }
+
+    .city-block { margin-bottom: 24px; }
+    .city-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .city-count {
+      font-size: 0.8rem;
+      background: #e63946;
+      color: white;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-weight: 600;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      padding: 8px 12px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 0.95rem;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .match-teams { font-weight: 600; }
+    .match-away { color: #555; font-weight: 400; }
+    .league-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #f0f2f5;
+      color: #444;
+    }
+    .date-cell { white-space: nowrap; color: #444; }
+    .time-cell { white-space: nowrap; color: #888; }
+
+    .no-results {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-size: 1.05rem;
+    }
+
+    .error-box {
+      background: #fff0f0;
+      border: 1px solid #ffcccc;
+      border-radius: 8px;
+      padding: 16px 20px;
+      color: #c00;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>⚽</span>
+  <h1>European Match Scanner</h1>
+</header>
+
+<div class="container">
+  <div class="card">
+    <form action="/fetch" method="post">
+      <div class="form-row">
+        <div class="field">
+          <label>Month</label>
+          <input type="month" name="month"
+                 value="{{ current_month }}"
+                 min="2020-01" max="2030-12">
+        </div>
+        <div class="field">
+          <label>Cities (leave empty for all)</label>
+          <div class="city-grid">
+            {% for city in cities %}
+            <div class="city-chip">
+              <input type="checkbox" name="cities" value="{{ city }}"
+                     id="city_{{ city }}"
+                     {% if selected_cities and city in selected_cities %}checked{% endif %}>
+              <label for="city_{{ city }}">{{ city }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <button type="submit">🔍 Search Matches</button>
+    </form>
+  </div>
+
+  {% if error %}
+  <div class="error-box">❌ {{ error }}</div>
+  {% endif %}
+
+  {% if grouped is defined and grouped is not none %}
+    {% if grouped %}
+    <div class="card">
+      <div class="results-header">
+        Found <span>{{ total }}</span> matches in <span>{{ grouped|length }}</span> cities — {{ month }}
+      </div>
+
+      {% for city in grouped|sort %}
+      <div class="city-block">
+        <div class="city-title">
+          📍 {{ city }}
+          <span class="city-count">{{ grouped[city]|length }}</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time (IL)</th>
+              <th>Home</th>
+              <th></th>
+              <th>Away</th>
+              <th>League</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in grouped[city] %}
+            <tr>
+              <td class="date-cell">{{ m.date.strftime('%d/%m/%Y') }}</td>
+              <td class="time-cell">{{ m.date.astimezone().strftime('%H:%M') }}</td>
+              <td class="match-teams">{{ m.home_team }}</td>
+              <td style="color:#aaa; font-size:0.85rem;">vs</td>
+              <td class="match-away">{{ m.away_team }}</td>
+              <td><span class="league-badge">{{ m.competition }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card no-results">
+      No matches found for the selected month and cities.
+    </div>
+    {% endif %}
+  {% endif %}
+
+</div>
+</body>
+</html>
