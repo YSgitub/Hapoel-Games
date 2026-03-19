@@ -1,37 +1,44 @@
-from datetime import datetime, timezone, timedelta
+from datetime import timezone, timedelta
 from tabulate import tabulate
 
 ISRAEL_TZ = timezone(timedelta(hours=3))
 
 
-def print_matches(matches):
-    """Print upcoming matches as a formatted table."""
+def print_matches(matches, month_str):
     if not matches:
-        print("\nלא נמצאו משחקים עתידיים.\n")
+        print(f"\nNo matches found for {month_str}.\n")
         return
 
-    print("\n⚽  משחקים קרובים — הפועל תל אביב")
-    print("━" * 55)
+    print(f"\n⚽  European Home Matches — {month_str}")
+    print("=" * 70)
 
-    rows = []
-    for i, match in enumerate(matches, 1):
-        date_utc = datetime.fromisoformat(match["utcDate"].replace("Z", "+00:00"))
-        date_il = date_utc.astimezone(ISRAEL_TZ)
+    # Group by city
+    by_city = {}
+    for m in matches:
+        by_city.setdefault(m["city"], []).append(m)
 
-        date_str = date_il.strftime("%d/%m/%Y")
-        time_str = date_il.strftime("%H:%M")
+    for city in sorted(by_city.keys()):
+        print(f"\n📍 {city}")
+        print("-" * 60)
 
-        home = match["homeTeam"]["shortName"] or match["homeTeam"]["name"]
-        away = match["awayTeam"]["shortName"] or match["awayTeam"]["name"]
-        competition = match["competition"]["name"]
+        rows = []
+        for m in by_city[city]:
+            date_il = m["date"].astimezone(ISRAEL_TZ)
+            date_str = date_il.strftime("%d/%m/%Y")
+            time_str = date_il.strftime("%H:%M")
+            home = _short(m["home_team"])
+            away = _short(m["away_team"])
+            rows.append([date_str, time_str, home, "vs", away, m["competition"]])
 
-        if match["homeTeam"]["id"] == 11163:
-            opponent = f"{away} (בית)"
-        else:
-            opponent = f"{home} (חוץ)"
+        headers = ["Date", "Time (IL)", "Home", "", "Away", "League"]
+        print(tabulate(rows, headers=headers, tablefmt="simple"))
 
-        rows.append([i, date_str, time_str, opponent, competition])
+    print(f"\nTotal: {len(matches)} matches in {len(by_city)} cities\n")
 
-    headers = ["#", "תאריך", "שעה", "יריב", "תחרות"]
-    print(tabulate(rows, headers=headers, tablefmt="simple"))
-    print()
+
+def _short(name):
+    """Remove common suffixes for cleaner display."""
+    for suffix in [" FC", " CF", " AC", " SC", " BC", " United", " City",
+                   " Calcio", " Balompié", " de Fútbol"]:
+        name = name.replace(suffix, "")
+    return name.strip()
